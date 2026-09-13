@@ -1,1 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offpeak: travel destination explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens */
+:root{
+  --paper:#F6F2EC;
+  --paper-2:#EDE7DE;
+  --ink:#1A1F1D;
+  --ink-2:#4A524F;
+  --line:#DBD3C8;
+  --teal:#0E6E5E;       /* action: buttons, active state, links */
+  --teal-soft:#E2EEEA;
 
+  --best:#2F7D52;       /* season: go now */
+  --shoulder:#C08A2E;   /* season: workable */
+  --avoid:#B0A99E;      /* season: don't */
+
+  --r-sm:8px; --r-md:14px; --r-lg:20px; --r-xl:28px; --r-full:999px;
+  --f-display:"Fraunces",Georgia,serif;
+  --f-ui:"Schibsted Grotesk","Helvetica Neue",Arial,sans-serif;
+  --desk:#211F1C;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--f-ui);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+h1,h2,h3{font-family:var(--f-display);margin:0;line-height:1.06;letter-spacing:-.015em}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:4px}
+
+/* Page shell */
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(24px,5vw,56px) clamp(16px,4vw,40px) 80px;
+  display:grid;grid-template-columns:390px 1fr;gap:clamp(32px,5vw,64px);align-items:start;color:var(--paper)}
+.doc .kicker{color:#9AA8A3;font-size:14px;font-weight:600;margin:0 0 8px}
+.doc h1{font-family:var(--f-display);font-size:clamp(32px,4vw,46px);font-weight:900;margin-bottom:12px;color:var(--paper)}
+.doc h2{font-size:20px;font-weight:700;margin:34px 0 12px;color:var(--paper);font-family:var(--f-ui)}
+.doc p{color:#B8B2A8;line-height:1.6;max-width:62ch;margin:0 0 14px;font-size:15px}
+.doc strong{color:var(--paper)}
+.doc ul{margin:0 0 14px;padding-left:18px;color:#B8B2A8;font-size:15px;line-height:1.6}
+.doc li{margin-bottom:6px}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.node{border:1px solid rgba(246,242,236,.2);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--paper)}
+.node.entry{border-color:#4FBFA6;color:#4FBFA6}
+.arrow{color:#7C766D;font-size:13px}
+.tok{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px;margin-bottom:18px}
+.sw{border:1px solid rgba(246,242,236,.16);border-radius:8px;padding:10px;font-size:12px;line-height:1.4;color:var(--paper)}
+.sw i{display:block;height:24px;border-radius:4px;margin-bottom:8px}
+.sw span{color:#9A948B}
+
+/* Phone */
+.phone{position:sticky;top:32px;width:390px;height:800px;background:var(--paper);
+  border-radius:38px;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 40px 80px -20px rgba(0,0,0,.6)}
+.status{display:flex;justify-content:space-between;padding:14px 24px 4px;font-size:13px;font-weight:600;flex:none}
+.view{flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}
+.view::-webkit-scrollbar{display:none}
+
+/* App header */
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 4px}
+.brand{font-family:var(--f-display);font-size:21px;font-weight:900;letter-spacing:-.03em}
+.appbar .tools{display:flex;gap:6px;align-items:center}
+.icobtn{width:40px;height:40px;display:grid;place-items:center;border-radius:50%;position:relative}
+.icobtn svg{width:21px;height:21px;stroke:var(--ink);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icobtn .count{position:absolute;top:3px;right:2px;background:var(--teal);color:var(--paper);
+  font-size:10px;font-weight:700;min-width:17px;height:17px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
+
+/* Month strip */
+.when{padding:10px 0 2px}
+.when .lab{padding:0 20px 8px;font-size:13px;color:var(--ink-2);font-weight:600}
+.months{display:flex;gap:6px;overflow-x:auto;padding:0 20px 6px;scrollbar-width:none}
+.months::-webkit-scrollbar{display:none}
+.mo{flex:none;min-width:52px;border:1px solid var(--line);border-radius:var(--r-md);padding:9px 0 8px;
+  text-align:center;background:var(--paper)}
+.mo b{display:block;font-size:13.5px;font-weight:600}
+.mo i{display:block;height:3px;border-radius:2px;margin:6px 10px 0;background:var(--line)}
+.mo[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.mo[aria-pressed="true"] i{background:var(--paper)}
+
+/* Destination card */
+.sec-t{display:flex;justify-content:space-between;align-items:baseline;padding:24px 20px 10px}
+.sec-t h2{font-size:21px;font-weight:700}
+.sec-t span{font-size:13px;color:var(--ink-2);font-weight:600}
+.dest{display:block;width:calc(100% - 40px);margin:0 20px 16px;border-radius:var(--r-lg);
+  overflow:hidden;background:var(--paper-2);position:relative}
+.dest .art{aspect-ratio:4/3;overflow:hidden;position:relative}
+.dest .body{padding:14px 16px 16px}
+.dest h3{font-size:23px;font-weight:700;margin-bottom:2px}
+.dest .where{font-size:13.5px;color:var(--ink-2);margin-bottom:10px}
+.dest .facts{display:flex;flex-wrap:wrap;gap:6px}
+.fact{border:1px solid var(--line);border-radius:var(--r-full);padding:5px 10px;font-size:12px;
+  color:var(--ink-2);font-weight:600}
+.badge{position:absolute;top:12px;left:12px;border-radius:var(--r-full);padding:6px 11px;
+  font-size:11.5px;font-weight:700;background:var(--paper);display:flex;align-items:center;gap:6px}
+.badge i{width:7px;height:7px;border-radius:50%;display:block}
+.savebtn{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:50%;
+  background:rgba(246,242,236,.92);display:grid;place-items:center}
+.savebtn svg{width:19px;height:19px;stroke:var(--ink);fill:none;stroke-width:1.9}
+.savebtn[data-saved="true"] svg{stroke:var(--teal);fill:var(--teal)}
+
+/* compact grid */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 20px}
+.mini-dest{border-radius:var(--r-md);overflow:hidden;background:var(--paper-2);position:relative}
+.mini-dest .art{aspect-ratio:1;overflow:hidden}
+.mini-dest .body{padding:9px 11px 12px}
+.mini-dest b{display:block;font-family:var(--f-display);font-size:16px;font-weight:700;margin-bottom:1px}
+.mini-dest span{font-size:11.5px;color:var(--ink-2)}
+
+/* chips */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:0 20px 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);border-radius:var(--r-full);padding:9px 14px;
+  font-size:13px;font-weight:600;color:var(--ink-2);min-height:40px}
+.chip[aria-pressed="true"]{background:var(--teal);color:var(--paper);border-color:var(--teal)}
+
+/* search */
+.searchbar{display:flex;align-items:center;gap:10px;margin:6px 20px 0;background:var(--paper-2);
+  border-radius:var(--r-md);padding:0 13px;border:1px solid transparent}
+.searchbar:focus-within{border-color:var(--teal)}
+.searchbar svg{width:18px;height:18px;stroke:var(--ink-2);fill:none;stroke-width:2;flex:none}
+.searchbar input{flex:1;background:none;border:0;outline:0;font:inherit;font-size:16px;padding:13px 0;min-width:0;color:var(--ink)}
+
+/* Season strip */
+.season{padding:0 20px}
+.season .bars{display:flex;gap:4px}
+.season .bars button{flex:1;text-align:center}
+.season .bars i{display:block;height:34px;border-radius:5px;margin-bottom:5px}
+.season .bars b{font-size:10.5px;font-weight:600;color:var(--ink-2)}
+.season .bars button[aria-pressed="true"] b{color:var(--ink);font-weight:700}
+.legend{display:flex;gap:14px;padding:12px 20px 0;font-size:11.5px;color:var(--ink-2);font-weight:600}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:9px;height:9px;border-radius:2px;display:block}
+
+/* Reach */
+.reach-wrap{padding:6px 20px 0}
+.reach{width:100%;aspect-ratio:1;display:block}
+.reach circle.ring{fill:none;stroke:var(--line);stroke-width:1}
+.reach text{font-family:"Schibsted Grotesk",sans-serif;font-size:6.5px;fill:var(--ink-2);font-weight:600}
+.reach .pin{cursor:pointer}
+.reach .pin circle{stroke:var(--paper);stroke-width:1.5}
+.reach .home{fill:var(--ink)}
+
+/* Detail */
+.hero{position:relative;height:300px;overflow:hidden}
+.hero .scrim{position:absolute;inset:auto 0 0 0;height:140px;
+  background:linear-gradient(to top,rgba(26,31,29,.86),transparent)}
+.hero .cap{position:absolute;left:20px;right:20px;bottom:16px;color:var(--paper)}
+.hero h1{font-size:34px;font-weight:900;color:var(--paper);margin-bottom:3px}
+.hero .where{font-size:14px;opacity:.85}
+.topbar{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;z-index:2}
+.rnd{width:40px;height:40px;border-radius:50%;background:rgba(246,242,236,.94);display:grid;place-items:center}
+.rnd svg{width:21px;height:21px;stroke:var(--ink);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rnd[data-saved="true"] svg{stroke:var(--teal);fill:var(--teal)}
+.glance{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  margin:0 0 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.glance div{background:var(--paper);padding:13px 20px}
+.glance dt{font-size:11.5px;color:var(--ink-2);font-weight:600;margin-bottom:3px}
+.glance dd{margin:0;font-family:var(--f-display);font-size:18px;font-weight:700}
+.verdict{margin:0 20px 22px;border-radius:var(--r-md);padding:14px 16px;border:1px solid}
+.verdict b{display:block;font-size:12.5px;font-weight:700;margin-bottom:5px}
+.verdict p{margin:0;font-size:14px;line-height:1.5}
+.blk{padding:0 20px 22px}
+.blk h2{font-size:19px;font-weight:700;margin-bottom:10px}
+.blk p{margin:0;font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+.hl{display:flex;gap:11px;padding:11px 0;border-top:1px solid var(--line)}
+.hl b{font-size:14.5px;font-weight:600;display:block;margin-bottom:2px}
+.hl span{font-size:13px;color:var(--ink-2);line-height:1.45}
+.hl .n{font-family:var(--f-display);font-size:15px;font-weight:700;color:var(--teal);flex:none;width:20px}
+.costs div{display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line);font-size:14.5px}
+.costs dt{color:var(--ink-2)}
+.costs dd{margin:0;font-weight:600}
+.stickybar{position:sticky;bottom:0;background:var(--paper);border-top:1px solid var(--line);
+  padding:12px 20px 16px;display:flex;gap:10px;align-items:center}
+.btn{background:var(--teal);color:var(--paper);font-weight:700;font-size:15.5px;padding:14px 22px;
+  border-radius:var(--r-full);flex:1;text-align:center;min-height:48px}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+.btn:active{transform:scale(.98)}
+
+/* Shortlist and compare */
+.sl-row{display:flex;gap:12px;align-items:center;padding:10px 20px;width:100%}
+.sl-row .art{width:66px;height:66px;border-radius:var(--r-sm);overflow:hidden;flex:none}
+.sl-row .t{flex:1;min-width:0}
+.sl-row b{display:block;font-family:var(--f-display);font-size:17px;font-weight:700}
+.sl-row span{font-size:12.5px;color:var(--ink-2)}
+.sl-row .pick{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);flex:none;display:grid;place-items:center}
+.sl-row .pick[data-on="true"]{background:var(--teal);border-color:var(--teal)}
+.sl-row .pick[data-on="true"]::after{content:"";width:9px;height:9px;border-radius:50%;background:var(--paper)}
+.ctable{padding:0 20px}
+.ctable .hd{display:grid;gap:8px;margin-bottom:6px}
+.ctable .hd b{font-family:var(--f-display);font-size:14px;font-weight:700;line-height:1.15}
+.ctable .r{display:grid;gap:8px;padding:11px 0;border-top:1px solid var(--line);align-items:start}
+.ctable .lbl{font-size:11.5px;color:var(--ink-2);font-weight:600;grid-column:1/-1;margin-bottom:-4px}
+.ctable .v{font-size:13.5px;font-weight:600}
+.ctable .v.win{color:var(--teal)}
+.empty{padding:70px 30px;text-align:center;color:var(--ink-2)}
+.empty h3{font-size:20px;color:var(--ink);margin-bottom:6px}
+.empty p{font-size:14.5px;line-height:1.55;margin:0 0 18px}
+
+/* Tab bar */
+.tabs{flex:none;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);
+  background:var(--paper);padding:8px 4px 18px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;
+  color:var(--ink-2);font-size:11px;font-weight:600;min-height:44px;text-align:center}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--teal)}
+
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);
+  color:var(--paper);font-size:13.5px;font-weight:600;padding:11px 18px;border-radius:var(--r-full);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:30;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.view>*{animation:fade .16s ease-out}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;justify-items:center}
+  .phone{position:relative;top:0;width:100%;max-width:390px;height:min(800px,86vh)}
+  .doc{max-width:560px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="phone" role="application" aria-label="Offpeak prototype">
+    <div class="status"><span>9:41</span><span>▮▮▮</span></div>
+    <div class="view" id="view"></div>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Main"></nav>
+    <div class="toast" id="toast" role="status"></div>
+  </div>
+
+  <div class="doc">
+    <p class="kicker">Task 3: travel destination explorer</p>
+    <h1>Offpeak</h1>
+    <p>Travel applications usually respond to the question "where should I travel." However, in reality, the key question when you plan your trip is when: if the location is open for the season, if any cruise boats are travelling there at the certain time, and if you will pay only half of the price a month later. So the option of month takes the leading position in this app and reorganizes the following app options according to this information.</p>
+
+    <h2>User flow</h2>
+    <div class="flow"><span class="node entry">Explore</span><span class="arrow">→</span><span class="node">Pick a month</span><span class="arrow">→</span><span class="node">Destination</span><span class="arrow">→</span><span class="node">Shortlist</span><span class="arrow">→</span><span class="node">Compare</span></div>
+    <div class="flow"><span class="node entry">Reach</span><span class="arrow">→</span><span class="node">Tap a pin</span><span class="arrow">→</span><span class="node">Destination</span><span class="arrow">→</span><span class="node">Pair it with</span></div>
+    <div class="flow"><span class="node entry">Explore</span><span class="arrow">→</span><span class="node">Search / collection</span><span class="arrow">→</span><span class="node">Destination</span></div>
+
+    <h2>Colour</h2>
+    <div class="tok">
+      <div class="sw"><i style="background:#F6F2EC"></i><b>Paper</b><br><span>#F6F2EC</span></div>
+      <div class="sw"><i style="background:#EDE7DE"></i><b>Paper 2</b><br><span>#EDE7DE</span></div>
+      <div class="sw"><i style="background:#1A1F1D"></i><b>Ink</b><br><span>#1A1F1D</span></div>
+      <div class="sw"><i style="background:#0E6E5E"></i><b>Teal</b><br><span>#0E6E5E · action</span></div>
+      <div class="sw"><i style="background:#2F7D52"></i><b>Best</b><br><span>#2F7D52 · season</span></div>
+      <div class="sw"><i style="background:#C08A2E"></i><b>Shoulder</b><br><span>#C08A2E · season</span></div>
+      <div class="sw"><i style="background:#B0A99E"></i><b>Avoid</b><br><span>#B0A99E · season</span></div>
+    </div>
+    <p><strong>The rule:</strong> teal is the only color that you can use. The colors for the three seasons are determined by data, which indicate what a month is like and are never used for highlighting, buttons, and decorative purposes. A green dot always represents the same meaning irrespective of where it is seen.</p>
+
+    <h2>Type</h2>
+    <ul>
+      <li><strong>Fraunces</strong> 700/900 for destination names and titles, a soft serif with real warmth, which is what makes the app read as a guidebook rather than a booking engine.</li>
+      <li><strong>Schibsted Grotesk</strong> 400/600/700 for all functional text.</li>
+      <li>Scale: 34 / 23 / 21 / 19 / 16 / 14.5 / 13 / 11.5.</li>
+    </ul>
+
+    <h2>On the artwork</h2>
+    <p>Each destination photo is an illustrated piece of vector art made in the American style of banner design from the 1950s. This is because it is essential for an artwork in a portfolio not to be based on someone else's photography and because illustration helps tap into a single visual style of the entire application, which is not possible with stock images.</p>
+
+  </div>
+</div>
+
+<script>
+/* Data. season runs Jan to Dec: 2 best, 1 shoulder, 0 avoid.
+   bearing is degrees from north, seen from home. */
+const HOME = "Nairobi";
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const DEST = [
+ {id:1,n:"Zanzibar",c:"Tanzania",type:"Islands",scene:"island",pal:0,fly:1.2,day:55,visa:"On arrival",cur:"TZS",lang:"Swahili",
+  season:[2,2,1,0,0,2,2,2,2,2,1,2],bearing:170,
+  blurb:"Coral stone alleys, a spice-trade history you can still smell, and the kind of water that makes the flight time feel like a clerical error.",
+  hl:[["Stone Town at dusk","The old quarter empties of day-trippers around five and turns quiet."],["Nungwi dhow builders","Boats still made by hand on the north beach, no ticket required."],["Jozani forest","The last red colobus population, forty minutes inland."]],
+  costs:[["Bed, mid-range","$40–70"],["A full meal","$6–12"],["Airport transfer","$25"]]},
+
+ {id:2,n:"Lamu",c:"Kenya",type:"Islands",scene:"coast",pal:1,fly:1.5,day:48,visa:"Domestic",cur:"KES",lang:"Swahili",
+  season:[2,2,1,0,0,1,2,2,2,2,1,2],bearing:60,
+  blurb:"No cars, one donkey per household, and a Swahili town that has been trading for six hundred years without hurrying once.",
+  hl:[["The seafront at high tide","Dhows come in close enough to talk to."],["Shela dunes","Twenty minutes' walk and you have a beach to yourself."],["Carved doors","Every one is different and most are two centuries old."]],
+  costs:[["Bed, mid-range","$35–60"],["A full meal","$5–10"],["Boat to Shela","$4"]]},
+
+ {id:3,n:"Cape Town",c:"South Africa",type:"Cities",scene:"mountain",pal:2,fly:4.5,day:75,visa:"Visa-free",cur:"ZAR",lang:"English",
+  season:[2,2,2,1,0,0,0,0,1,2,2,2],bearing:200,
+  blurb:"A city wedged between a flat-topped mountain and two oceans, which explains both the views and the wind.",
+  hl:[["Table Mountain at sunrise","Walk up Platteklip before the cable car opens."],["Bo-Kaap","Cape Malay quarter, steep streets, the best food in the city."],["Cape Point drive","Two hours of coast road that never stops being ridiculous."]],
+  costs:[["Bed, mid-range","$50–90"],["A full meal","$12–20"],["Car hire, per day","$30"]]},
+
+ {id:4,n:"Kigali",c:"Rwanda",type:"Cities",scene:"forest",pal:3,fly:1.5,day:60,visa:"On arrival",cur:"RWF",lang:"Kinyarwanda",
+  season:[1,1,0,0,1,2,2,2,1,0,0,1],bearing:280,
+  blurb:"Built across a thousand hills, unreasonably clean, and the easiest African capital to arrive in cold.",
+  hl:[["Kimironko market","Fabric, fruit and zero tourist pricing."],["Genocide Memorial","Give it a full morning and nothing after it."],["Nyungwe day trip","Cloud forest and a canopy walk, four hours out."]],
+  costs:[["Bed, mid-range","$45–80"],["A full meal","$8–14"],["Moto across town","$1"]]},
+
+ {id:5,n:"Marrakech",c:"Morocco",type:"Ancient",scene:"desert",pal:4,fly:9,day:65,visa:"Visa-free",cur:"MAD",lang:"Arabic",
+  season:[1,1,2,2,2,1,0,0,1,2,2,1],bearing:305,
+  blurb:"A walled medina that has been confusing visitors for a thousand years and shows no sign of stopping.",
+  hl:[["Jemaa el-Fnaa after dark","The square changes function entirely at sunset."],["Le Jardin Secret","A cool courtyard when the medina gets too much."],["Atlas foothills","Ninety minutes to snow, from a city at 30°C."]],
+  costs:[["Riad, mid-range","$45–85"],["A full meal","$7–15"],["Day trip to Atlas","$35"]]},
+
+ {id:6,n:"Lisbon",c:"Portugal",type:"Cities",scene:"city",pal:5,fly:9.5,day:90,visa:"Schengen",cur:"EUR",lang:"Portuguese",
+  season:[0,0,1,2,2,2,1,1,2,2,1,0],bearing:320,
+  blurb:"Seven hills, tiled facades, and a light in the late afternoon that photographers move here for.",
+  hl:[["Alfama on foot","Get lost deliberately; every street ends at a view."],["Tram 28 early","Before nine it is transport, after ten it is a queue."],["Cascais by train","Forty minutes to the coast for the price of a coffee."]],
+  costs:[["Bed, mid-range","$70–120"],["A full meal","$14–25"],["Metro day pass","$7"]]},
+
+ {id:7,n:"Istanbul",c:"Türkiye",type:"Ancient",scene:"city",pal:6,fly:6.5,day:70,visa:"E-visa",cur:"TRY",lang:"Turkish",
+  season:[0,0,1,2,2,1,1,1,2,2,1,0],bearing:340,
+  blurb:"Two continents, three empires, and a ferry commute that is the best-value sightseeing on earth.",
+  hl:[["Ferry to Kadıköy","Twenty minutes, the whole skyline, costs almost nothing."],["Süleymaniye at prayer","Quieter and grander than the famous one."],["Balat backstreets","Faded colour, antique shops, no tour groups yet."]],
+  costs:[["Bed, mid-range","$45–85"],["A full meal","$8–16"],["Ferry crossing","$1"]]},
+
+ {id:8,n:"Kyoto",c:"Japan",type:"Ancient",scene:"forest",pal:7,fly:14,day:110,visa:"Visa required",cur:"JPY",lang:"Japanese",
+  season:[0,0,1,2,1,0,0,0,1,2,2,0],bearing:55,
+  blurb:"Sixteen hundred temples and a city that has decided, collectively, that restraint is the point.",
+  hl:[["Fushimi Inari at 6am","The gates are empty and the light is sideways."],["Nishiki market","Five blocks of food that all predate refrigeration."],["Arashiyama, north end","Walk past the bamboo and the crowds stop dead."]],
+  costs:[["Bed, mid-range","$80–140"],["A full meal","$10–22"],["Rail day pass","$12"]]},
+
+ {id:9,n:"Bali",c:"Indonesia",type:"Islands",scene:"forest",pal:8,fly:12,day:50,visa:"On arrival",cur:"IDR",lang:"Indonesian",
+  season:[0,0,1,2,2,2,2,2,2,1,0,0],bearing:100,
+  blurb:"Terraced rice, volcanic ridges and a south coast that is now mostly other travellers, so go north.",
+  hl:[["Sidemen valley","What Ubud looked like twenty years ago."],["Mount Batur at dawn","Two-hour climb, breakfast cooked in steam vents."],["Amed coast","Black sand, no crowds, better diving than the south."]],
+  costs:[["Bed, mid-range","$25–60"],["A full meal","$4–10"],["Scooter, per day","$5"]]},
+
+ {id:10,n:"Reykjavík",c:"Iceland",type:"Mountains",scene:"mountain",pal:9,fly:13,day:150,visa:"Schengen",cur:"ISK",lang:"Icelandic",
+  season:[2,2,1,1,2,2,2,2,2,1,1,2],bearing:330,
+  blurb:"A small capital used mostly as a doorway to everything violent and geological outside it.",
+  hl:[["Aurora, Sep–Mar","Drive twenty minutes out and kill the headlights."],["Reykjanes peninsula","Lava fields and steam, ten minutes from the airport."],["Pool culture","Every town has a hot pool; that is where people talk."]],
+  costs:[["Bed, mid-range","$120–200"],["A full meal","$25–40"],["Car hire, per day","$70"]]},
+
+ {id:11,n:"Mauritius",c:"Mauritius",type:"Islands",scene:"island",pal:10,fly:4.5,day:85,visa:"Visa-free",cur:"MUR",lang:"Creole",
+  season:[0,0,1,2,2,2,1,1,2,2,1,0],bearing:140,
+  blurb:"Lagoon on every side, sugar cane in the middle, and a mountain interior that most visitors never drive into.",
+  hl:[["Le Morne","A mountain with a history worth reading before you climb it."],["Black River Gorges","Rainforest and endemic birds, empty on weekdays."],["Port Louis market","Best food on the island is in the upstairs canteen."]],
+  costs:[["Bed, mid-range","$60–110"],["A full meal","$10–18"],["Bus across island","$2"]]},
+
+ {id:12,n:"Cairo",c:"Egypt",type:"Ancient",scene:"ancient",pal:11,fly:4.5,day:45,visa:"On arrival",cur:"EGP",lang:"Arabic",
+  season:[1,2,2,2,1,0,0,0,1,2,2,1],bearing:345,
+  blurb:"Twenty-two million people and four and a half thousand years, stacked directly on top of each other.",
+  hl:[["Giza at opening","Be at the gate at eight or do not bother."],["Egyptian Museum","Go before the new one; the dust is part of it."],["Islamic Cairo","Medieval streets almost nobody walks."]],
+  costs:[["Bed, mid-range","$30–65"],["A full meal","$5–11"],["Pyramids entry","$12"]]},
+
+ {id:13,n:"Athens",c:"Greece",type:"Ancient",scene:"ancient",pal:12,fly:6.5,day:80,visa:"Schengen",cur:"EUR",lang:"Greek",
+  season:[0,0,1,2,2,1,0,0,2,2,1,0],bearing:335,
+  blurb:"A scruffy, argumentative, extremely alive city that happens to have the Parthenon on a rock in the middle of it.",
+  hl:[["Acropolis, last entry","Late afternoon, long shadows, half the people."],["Anafiotika","An island village hidden inside the city."],["Ferry from Piraeus","Islands start ninety minutes from the metro."]],
+  costs:[["Bed, mid-range","$55–100"],["A full meal","$12–20"],["Metro day pass","$5"]]},
+
+ {id:14,n:"Seychelles",c:"Seychelles",type:"Islands",scene:"island",pal:13,fly:3.5,day:130,visa:"Visa-free",cur:"SCR",lang:"Creole",
+  season:[1,1,2,2,2,1,1,1,1,2,2,1],bearing:120,
+  blurb:"Granite boulders, water that does not look real in photographs, and a price tag you can halve by staying on Praslin.",
+  hl:[["Anse Source d'Argent","The one from the postcards; go at low tide."],["Vallée de Mai","Coco de mer palms, a forest older than the islands around it."],["Island ferries","Mahé to Praslin in an hour, no flight needed."]],
+  costs:[["Bed, mid-range","$90–180"],["A full meal","$18–30"],["Inter-island ferry","$55"]]}
+];
+
+const COLLECTIONS = ["Islands","Cities","Ancient","Mountains"];
+
+/* Poster art. Palette order: sky, sun, far, mid, near */
+const PAL = [
+ ["#F2C75E","#E8613C","#2E6E6B","#1B4A4E","#12332F"],
+ ["#8FD3E8","#F4A259","#2C7A94","#1A5670","#0E3448"],
+ ["#F6D6A8","#E06B4A","#7A5C8E","#4A3A66","#241E3D"],
+ ["#CDE8B6","#F0B429","#3F8A4E","#28633A","#143A24"],
+ ["#F7C873","#D95F2E","#B4552F","#7A3A22","#42201A"],
+ ["#FBD9A5","#E8724C","#5E7FA8","#3A5478","#1F3050"],
+ ["#F3C05B","#D94F3D","#3C6E8F","#264D66","#132E3F"],
+ ["#F5D9DE","#D96A84","#6E8B6E","#45604A","#24352A"],
+ ["#BFE8D0","#F2A03D","#2F8B6E","#1C6150","#0D3B31"],
+ ["#BFD9E8","#F0E3C0","#6E8FA8","#3F5C73","#1E3346"],
+ ["#A8E0D8","#F2B950","#1F8C86","#116A6E","#07414A"],
+ ["#F7D9A0","#E2853C","#C4703E","#8A4A2E","#4E2620"],
+ ["#F2E2C4","#D9743F","#5E86A0","#3A5C73","#1D3547"],
+ ["#A5E5E0","#F5C45E","#2E9E96","#17726F","#0A4347"]
+];
+
+function poster(d){
+  const [sky,sun,far,mid,near] = PAL[d.pal % PAL.length];
+  const scenes = {
+    mountain:`<circle cx="68" cy="30" r="13" fill="${sun}"/>
+      <path d="M0 74 L26 38 L46 62 L62 44 L100 78 L100 100 L0 100 Z" fill="${far}"/>
+      <path d="M0 84 L30 56 L58 82 L78 66 L100 88 L100 100 L0 100 Z" fill="${mid}"/>
+      <path d="M0 96 L22 80 L44 96 L70 84 L100 98 L100 100 L0 100 Z" fill="${near}"/>`,
+    coast:`<circle cx="30" cy="28" r="12" fill="${sun}"/>
+      <rect y="62" width="100" height="38" fill="${far}"/>
+      <path d="M0 70 q12 -4 24 0 t24 0 t24 0 t24 0" stroke="${mid}" stroke-width="1.6" fill="none" opacity=".6"/>
+      <path d="M0 80 q12 -4 24 0 t24 0 t24 0 t24 0" stroke="${mid}" stroke-width="1.6" fill="none" opacity=".45"/>
+      <path d="M62 62 L78 34 L100 62 Z" fill="${mid}"/>
+      <path d="M0 92 q26 -8 52 0 t48 4 L100 100 L0 100 Z" fill="${near}"/>`,
+    island:`<circle cx="72" cy="26" r="11" fill="${sun}"/>
+      <rect y="60" width="100" height="40" fill="${far}"/>
+      <path d="M0 74 q14 -4 28 0 t28 0 t28 0" stroke="${mid}" stroke-width="1.4" fill="none" opacity=".55"/>
+      <ellipse cx="46" cy="72" rx="30" ry="10" fill="${mid}"/>
+      <path d="M40 70 q-2 -16 4 -22" stroke="${near}" stroke-width="2" fill="none"/>
+      <path d="M44 48 q-12 -2 -16 6 M44 48 q12 -2 16 6 M44 48 q-4 -12 -14 -12 M44 48 q6 -12 16 -10" stroke="${near}" stroke-width="2" fill="none"/>
+      <path d="M0 90 q30 -6 60 2 t40 2 L100 100 L0 100 Z" fill="${near}"/>`,
+    desert:`<circle cx="50" cy="34" r="16" fill="${sun}"/>
+      <path d="M0 66 q28 -14 52 2 t48 -4 L100 100 L0 100 Z" fill="${far}"/>
+      <path d="M0 80 q34 -16 62 4 t38 -6 L100 100 L0 100 Z" fill="${mid}"/>
+      <path d="M0 94 q30 -8 56 2 t44 -2 L100 100 L0 100 Z" fill="${near}"/>
+      <path d="M78 78 q-1 -14 3 -20" stroke="${near}" stroke-width="1.6" fill="none"/>
+      <path d="M81 56 q-10 -1 -13 6 M81 56 q10 -1 13 6 M81 56 q-3 -10 -11 -11" stroke="${near}" stroke-width="1.6" fill="none"/>`,
+    city:`<circle cx="24" cy="26" r="12" fill="${sun}"/>
+      <path d="M0 70 L16 70 L16 52 L28 52 L28 70 L40 70 L40 44 L52 44 L52 70 L100 70 L100 100 L0 100 Z" fill="${far}"/>
+      <path d="M0 78 L12 78 L12 62 L22 62 L22 78 L36 78 L36 58 L46 58 L46 78 L64 78 L64 66 L76 66 L76 78 L100 78 L100 100 L0 100 Z" fill="${mid}"/>
+      <path d="M0 92 L100 92 L100 100 L0 100 Z" fill="${near}"/>
+      <g fill="${sun}" opacity=".8"><rect x="6" y="82" width="3" height="4"/><rect x="16" y="82" width="3" height="4"/><rect x="40" y="82" width="3" height="4"/><rect x="68" y="82" width="3" height="4"/><rect x="86" y="82" width="3" height="4"/></g>`,
+    forest:`<circle cx="70" cy="28" r="12" fill="${sun}"/>
+      <path d="M0 72 q24 -18 50 -2 t50 -6 L100 100 L0 100 Z" fill="${far}"/>
+      <g fill="${mid}"><path d="M14 92 L24 64 L34 92 Z"/><path d="M34 96 L46 60 L58 96 Z"/><path d="M58 92 L68 66 L78 92 Z"/><path d="M78 96 L88 70 L98 96 Z"/><path d="M0 94 L8 70 L16 94 Z"/></g>
+      <path d="M0 96 L100 96 L100 100 L0 100 Z" fill="${near}"/>`,
+    ancient:`<circle cx="50" cy="30" r="14" fill="${sun}"/>
+      <path d="M0 78 q30 -12 54 0 t46 -4 L100 100 L0 100 Z" fill="${far}"/>
+      <path d="M28 78 L50 40 L72 78 Z" fill="${mid}"/>
+      <g fill="${near}"><rect x="30" y="78" width="4" height="16"/><rect x="42" y="78" width="4" height="16"/><rect x="54" y="78" width="4" height="16"/><rect x="66" y="78" width="4" height="16"/><rect x="26" y="74" width="48" height="5"/></g>
+      <path d="M0 94 L100 94 L100 100 L0 100 Z" fill="${near}"/>`
+  };
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block">
+    <rect width="100" height="100" fill="${sky}"/>${scenes[d.scene] || scenes.mountain}</svg>`;
+}
+
+/* State */
+const state = {
+  screen:"explore", dest:null, from:"explore",
+  month:new Date().getMonth(), collection:null, query:"", searchOpen:false,
+  saved:new Set([1,6]), compare:new Set(), comparing:false
+};
+
+const view=document.getElementById("view"), tabs=document.getElementById("tabs"), toast=document.getElementById("toast");
+const byId=id=>DEST.find(d=>d.id===id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const SEASON=["avoid","shoulder","best"];
+const SEASON_C={2:"var(--best)",1:"var(--shoulder)",0:"var(--avoid)"};
+const SEASON_T={2:"In season",1:"Shoulder season",0:"Off season"};
+
+const ICO={
+  compass:`<circle cx="12" cy="12" r="9"/><path d="m15 9-2 4-4 2 2-4z"/>`,
+  rings:`<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>`,
+  bookmark:`<path d="M6 4h12v16l-6-4-6 4z"/>`,
+  search:`<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>`,
+  back:`<path d="m14 6-6 6 6 6"/>`
+};
+
+function go(screen,opts={}){
+  if(screen==="dest"){state.from=opts.from||state.screen;state.dest=opts.id;}
+  state.screen=screen;render();view.scrollTop=0;
+}
+function toggleSave(id,e){
+  if(e)e.stopPropagation();
+  if(state.saved.has(id)){state.saved.delete(id);state.compare.delete(id);say("Removed from shortlist");}
+  else{state.saved.add(id);say("Added to shortlist");}
+  render();
+}
+function toggleCompare(id){
+  if(state.compare.has(id))state.compare.delete(id);
+  else if(state.compare.size<3)state.compare.add(id);
+  else say("Compare up to three");
+  render();
+}
+let tt;function say(m){toast.textContent=m;toast.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove("show"),1800);}
+
+/* Components */
+const saveBtn=(d,cls)=>`<button class="${cls}" data-saved="${state.saved.has(d.id)}"
+  aria-label="${state.saved.has(d.id)?"Remove":"Save"} ${esc(d.n)}" onclick="toggleSave(${d.id},event)">
+  <svg viewBox="0 0 24 24">${ICO.bookmark}</svg></button>`;
+
+const destCard=d=>{
+  const s=d.season[state.month];
+  return `<div class="dest">
+    <button style="display:block;width:100%" onclick="go('dest',{id:${d.id}})">
+      <div class="art">${poster(d)}
+        <span class="badge"><i style="background:${SEASON_C[s]}"></i>${SEASON_T[s]} in ${MONTHS[state.month]}</span>
+      </div>
+      <div class="body">
+        <h3>${esc(d.n)}</h3>
+        <div class="where">${esc(d.c)} · ${esc(d.type)}</div>
+        <div class="facts">
+          <span class="fact">${d.fly}h from ${HOME}</span>
+          <span class="fact">~$${d.day}/day</span>
+          <span class="fact">${esc(d.visa)}</span>
+        </div>
+      </div>
+    </button>
+    ${saveBtn(d,"savebtn")}
+  </div>`;
+};
+
+const miniCard=d=>`<div class="mini-dest">
+  <button style="display:block;width:100%" onclick="go('dest',{id:${d.id}})">
+    <div class="art">${poster(d)}</div>
+    <div class="body"><b>${esc(d.n)}</b><span>${d.fly}h · ~$${d.day}/day</span></div>
+  </button></div>`;
+
+const monthStrip=()=>`<div class="when">
+  <div class="lab">When can you travel?</div>
+  <div class="months">${MONTHS.map((m,i)=>`
+    <button class="mo" aria-pressed="${state.month===i}" onclick="state.month=${i};render()">
+      <b>${m}</b><i></i></button>`).join("")}</div></div>`;
+
+const seasonStrip=d=>`<div class="season">
+  <div class="bars">${d.season.map((s,i)=>`
+    <button aria-pressed="${state.month===i}" aria-label="${MONTHS[i]}: ${SEASON[s]}" onclick="state.month=${i};render()">
+      <i style="background:${SEASON_C[s]};${state.month===i?"outline:2px solid var(--ink);outline-offset:2px":""}"></i>
+      <b>${MONTHS[i][0]}</b></button>`).join("")}</div>
+  <div class="legend">
+    <span><i style="background:var(--best)"></i>Go now</span>
+    <span><i style="background:var(--shoulder)"></i>Workable</span>
+    <span><i style="background:var(--avoid)"></i>Avoid</span>
+  </div></div>`;
+
+/* Screens */
+function explore(){
+  const q=state.query.trim().toLowerCase();
+  let list=DEST.slice();
+  if(state.collection)list=list.filter(d=>d.type===state.collection);
+  if(q)list=list.filter(d=>(d.n+" "+d.c+" "+d.type).toLowerCase().includes(q));
+
+  const ranked=list.slice().sort((a,b)=>b.season[state.month]-a.season[state.month]||a.fly-b.fly);
+  const inSeason=ranked.filter(d=>d.season[state.month]===2);
+  const near=ranked.filter(d=>d.fly<=4.5&&d.season[state.month]>0);
+
+  return `
+    <div class="appbar">
+      <div class="brand">Offpeak</div>
+      <div class="tools">
+        <button class="icobtn" aria-label="Search" onclick="state.searchOpen=!state.searchOpen;render()">
+          <svg viewBox="0 0 24 24">${ICO.search}</svg></button>
+        <button class="icobtn" aria-label="Shortlist" onclick="go('shortlist')">
+          <svg viewBox="0 0 24 24">${ICO.bookmark}</svg>
+          ${state.saved.size?`<span class="count">${state.saved.size}</span>`:""}</button>
+      </div>
+    </div>
+
+    ${state.searchOpen?`<div class="searchbar">
+      <svg viewBox="0 0 24 24">${ICO.search}</svg>
+      <input id="q" type="search" placeholder="Where to?" value="${esc(state.query)}" aria-label="Search destinations"
+        oninput="state.query=this.value;render();const e=document.getElementById('q');e.focus();e.setSelectionRange(e.value.length,e.value.length)">
+    </div>`:""}
+
+    ${monthStrip()}
+
+    <div class="chips" style="padding-top:10px">
+      ${COLLECTIONS.map(c=>`<button class="chip" aria-pressed="${state.collection===c}"
+        onclick="state.collection = state.collection==='${c}' ? null : '${c}'; render()">${c}</button>`).join("")}
+    </div>
+
+    ${inSeason.length?`
+      <div class="sec-t"><h2>At its best in ${MONTHS[state.month]}</h2><span>${inSeason.length} places</span></div>
+      ${inSeason.slice(0,4).map(destCard).join("")}`:`
+      <div class="sec-t"><h2>Nothing peaks in ${MONTHS[state.month]}</h2></div>
+      <div style="padding:0 20px 16px;color:var(--ink-2);font-size:14.5px;line-height:1.55">
+        Try a neighbouring month, or look at the shoulder-season list below: quieter, cheaper, and usually fine.</div>`}
+
+    ${near.length?`
+      <div class="sec-t"><h2>Under five hours</h2><span>Long-weekend range</span></div>
+      <div class="grid2">${near.slice(0,4).map(miniCard).join("")}</div>`:""}
+
+    <div class="sec-t"><h2>Everything else, ranked for ${MONTHS[state.month]}</h2></div>
+    ${ranked.slice(0,6).map(destCard).join("")}
+    <div style="height:20px"></div>`;
+}
+
+function reach(){
+  const R=d=>14+Math.min(d.fly,15)/15*72;
+  const pos=d=>{const a=(d.bearing-90)*Math.PI/180;return[100+R(d)*Math.cos(a),100+R(d)*Math.sin(a)];};
+  const rings=[[3,"3h"],[6,"6h"],[10,"10h"],[15,"15h"]];
+
+  return `
+    <div class="appbar"><div class="brand">Reach</div>
+      <div class="tools"><button class="icobtn" aria-label="Shortlist" onclick="go('shortlist')">
+        <svg viewBox="0 0 24 24">${ICO.bookmark}</svg>
+        ${state.saved.size?`<span class="count">${state.saved.size}</span>`:""}</button></div>
+    </div>
+    <div style="padding:0 20px 4px;color:var(--ink-2);font-size:14px;line-height:1.5">
+      Everything plotted by flight time and direction from ${HOME}. Colour shows what ${MONTHS[state.month]} is like there.</div>
+
+    ${monthStrip()}
+
+    <div class="reach-wrap">
+      <svg class="reach" viewBox="0 0 200 200">
+        ${rings.map(([h,l])=>{const r=14+h/15*72;return`
+          <circle class="ring" cx="100" cy="100" r="${r}"/>
+          <text x="102" y="${100-r+4}">${l}</text>`;}).join("")}
+        <circle class="home" cx="100" cy="100" r="3.4"/>
+        <text x="105" y="103">${HOME}</text>
+        ${DEST.map(d=>{const[x,y]=pos(d);const s=d.season[state.month];return`
+          <g class="pin" onclick="go('dest',{id:${d.id},from:'reach'})">
+            <circle cx="${x}" cy="${y}" r="5" fill="${SEASON_C[s]}"/>
+            <text x="${x+7}" y="${y+2.5}">${esc(d.n)}</text>
+          </g>`;}).join("")}
+      </svg>
+    </div>
+    <div class="legend" style="padding-bottom:18px">
+      <span><i style="background:var(--best)"></i>Go now</span>
+      <span><i style="background:var(--shoulder)"></i>Workable</span>
+      <span><i style="background:var(--avoid)"></i>Avoid</span>
+    </div>`;
+}
+
+function dest(){
+  const d=byId(state.dest), s=d.season[state.month], saved=state.saved.has(d.id);
+  const pair=DEST.filter(x=>x.id!==d.id)
+    .sort((a,b)=>{
+      const score=x=>(x.type===d.type?2:0)+(Math.abs(x.fly-d.fly)<2.5?1:0);
+      return score(b)-score(a)||Math.abs(a.fly-d.fly)-Math.abs(b.fly-d.fly);
+    }).slice(0,4);
+  const vc={2:["var(--best)","rgba(47,125,82,.09)"],1:["var(--shoulder)","rgba(192,138,46,.10)"],0:["var(--avoid)","rgba(176,169,158,.14)"]}[s];
+  const vtext={
+    2:`${MONTHS[state.month]} is one of the best months here. Book earlier than you think: everyone else has worked this out too.`,
+    1:`${MONTHS[state.month]} is shoulder season. Expect some weather, but also lower prices and room to move.`,
+    0:`${MONTHS[state.month]} is the month to avoid. Look at the strip below and shift by six weeks if you can.`
+  }[s];
+
+  return `
+    <div class="hero">
+      ${poster(d)}
+      <div class="scrim"></div>
+      <div class="topbar">
+        <button class="rnd" aria-label="Back" onclick="go('${state.from}')"><svg viewBox="0 0 24 24">${ICO.back}</svg></button>
+        ${saveBtn(d,"rnd")}
+      </div>
+      <div class="cap"><h1>${esc(d.n)}</h1><div class="where">${esc(d.c)} · ${esc(d.type)}</div></div>
+    </div>
+
+    <dl class="glance">
+      <div><dt>Flight from ${HOME}</dt><dd>${d.fly} hours</dd></div>
+      <div><dt>Daily budget</dt><dd>~$${d.day}</dd></div>
+      <div><dt>Entry</dt><dd>${esc(d.visa)}</dd></div>
+      <div><dt>Currency</dt><dd>${esc(d.cur)}</dd></div>
+    </dl>
+
+    <div class="verdict" style="border-color:${vc[0]};background:${vc[1]}">
+      <b style="color:${vc[0]}">${SEASON_T[s]} · ${MONTHS[state.month]}</b>
+      <p>${vtext}</p>
+    </div>
+
+    <div class="blk"><h2>The year at a glance</h2></div>
+    ${seasonStrip(d)}
+    <div style="height:24px"></div>
+
+    <div class="blk"><h2>Why go</h2><p>${esc(d.blurb)}</p></div>
+
+    <div class="blk"><h2>Worth your time</h2>
+      ${d.hl.map((h,i)=>`<div class="hl"><span class="n">${i+1}</span>
+        <span><b>${esc(h[0])}</b><span>${esc(h[1])}</span></span></div>`).join("")}
+    </div>
+
+    <div class="blk"><h2>What it costs</h2>
+      <dl class="costs">${d.costs.map(c=>`<div><dt>${esc(c[0])}</dt><dd>${esc(c[1])}</dd></div>`).join("")}</dl>
+    </div>
+
+    <div class="sec-t"><h2>Pair it with</h2><span>Similar reach</span></div>
+    <div class="grid2">${pair.map(miniCard).join("")}</div>
+    <div style="height:24px"></div>
+
+    <div class="stickybar">
+      <button class="btn${saved?" ghost":""}" onclick="toggleSave(${d.id},event)">
+        ${saved?"On your shortlist":"Add to shortlist"}</button>
+      ${saved?`<button class="btn" style="flex:0 0 auto;padding:14px 20px" onclick="go('shortlist')">Shortlist</button>`:""}
+    </div>`;
+}
+
+function shortlist(){
+  const list=[...state.saved].map(byId);
+  if(!list.length) return `
+    <div class="appbar"><div class="brand">Shortlist</div></div>
+    <div class="empty">
+      <h3>Nothing saved yet</h3>
+      <p>Tap the bookmark on any destination and it lands here, ready to compare side by side.</p>
+      <button class="btn" style="display:inline-block;flex:none;padding:14px 26px" onclick="go('explore')">Start exploring</button>
+    </div>`;
+
+  if(state.comparing){
+    const picks=[...state.compare].map(byId);
+    const cols=`grid-template-columns:repeat(${picks.length},1fr)`;
+    const cheapest=Math.min(...picks.map(p=>p.day)), closest=Math.min(...picks.map(p=>p.fly));
+    return `
+      <div class="appbar"><div class="brand">Compare</div>
+        <div class="tools"><button class="icobtn" aria-label="Back to shortlist" onclick="state.comparing=false;render()">
+          <svg viewBox="0 0 24 24">${ICO.back}</svg></button></div></div>
+      <div class="ctable">
+        <div class="hd" style="${cols}">${picks.map(p=>`
+          <div><div style="aspect-ratio:1;border-radius:10px;overflow:hidden;margin-bottom:7px">${poster(p)}</div>
+          <b>${esc(p.n)}</b></div>`).join("")}</div>
+
+        <div class="r" style="${cols}"><span class="lbl">${MONTHS[state.month]}</span>
+          ${picks.map(p=>`<span class="v" style="color:${SEASON_C[p.season[state.month]]}">${SEASON_T[p.season[state.month]]}</span>`).join("")}</div>
+        <div class="r" style="${cols}"><span class="lbl">Flight from ${HOME}</span>
+          ${picks.map(p=>`<span class="v${p.fly===closest?" win":""}">${p.fly}h</span>`).join("")}</div>
+        <div class="r" style="${cols}"><span class="lbl">Daily budget</span>
+          ${picks.map(p=>`<span class="v${p.day===cheapest?" win":""}">~$${p.day}</span>`).join("")}</div>
+        <div class="r" style="${cols}"><span class="lbl">Entry</span>
+          ${picks.map(p=>`<span class="v">${esc(p.visa)}</span>`).join("")}</div>
+        <div class="r" style="${cols}"><span class="lbl">Best months</span>
+          ${picks.map(p=>`<span class="v">${p.season.map((v,i)=>v===2?MONTHS[i]:null).filter(Boolean).slice(0,4).join(", ")}</span>`).join("")}</div>
+        <div class="r" style="${cols}"><span class="lbl">Language</span>
+          ${picks.map(p=>`<span class="v">${esc(p.lang)}</span>`).join("")}</div>
+      </div>
+      <div style="padding:18px 20px 24px;color:var(--ink-2);font-size:13px">
+        Teal marks the cheaper and closer option on each row.</div>`;
+  }
+
+  return `
+    <div class="appbar"><div class="brand">Shortlist</div>
+      <div class="tools"><span style="font-size:13px;color:var(--ink-2);font-weight:600">${list.length} saved</span></div></div>
+    <div style="padding:4px 20px 10px;color:var(--ink-2);font-size:14px;line-height:1.5">
+      Pick two or three to compare.</div>
+    ${list.map(d=>`
+      <div class="sl-row">
+        <button class="pick" data-on="${state.compare.has(d.id)}" aria-label="Compare ${esc(d.n)}"
+          onclick="toggleCompare(${d.id})"></button>
+        <button style="display:flex;gap:12px;align-items:center;flex:1;min-width:0" onclick="go('dest',{id:${d.id},from:'shortlist'})">
+          <span class="art">${poster(d)}</span>
+          <span class="t"><b>${esc(d.n)}</b>
+            <span>${esc(d.c)} · ${d.fly}h · ${SEASON_T[d.season[state.month]].toLowerCase()} in ${MONTHS[state.month]}</span></span>
+        </button>
+        ${saveBtn(d,"icobtn")}
+      </div>`).join("")}
+    <div style="padding:16px 20px 26px">
+      <button class="btn" style="width:100%;opacity:${state.compare.size<2?.4:1}"
+        ${state.compare.size<2?'disabled aria-disabled="true"':''}
+        onclick="${state.compare.size<2?'':'state.comparing=true;render()'}">
+        ${state.compare.size<2?"Pick at least two to compare":"Compare "+state.compare.size}</button>
+    </div>`;
+}
+
+/* Render */
+const SCREENS={explore,reach,dest,shortlist};
+const TABS=[{id:"explore",l:"Explore",i:ICO.compass},{id:"reach",l:"Reach",i:ICO.rings},{id:"shortlist",l:"Shortlist",i:ICO.bookmark}];
+
+function render(){
+  view.innerHTML=SCREENS[state.screen]();
+  const active=state.screen==="dest"?state.from:state.screen;
+  tabs.innerHTML=TABS.map(t=>`
+    <button class="tab" role="tab" aria-selected="${active===t.id}" onclick="go('${t.id}')">
+      <svg viewBox="0 0 24 24">${t.i}</svg>${t.l}</button>`).join("");
+}
+render();
+</script>
+</body>
+</html>
